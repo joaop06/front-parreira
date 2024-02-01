@@ -67,8 +67,8 @@
         class="ma-auto overflow-y-auto"
         color="transparent"
         :elevation="3"
-        max-width="95vw"
-        max-height="64vh"
+        width="95vw"
+        height="65vh"
       >
         <v-row class="fixed-row bg-white mb-4">
           <v-col
@@ -90,10 +90,8 @@
               <v-col v-for="(client, i) in allRegisters.rows" :key="client.id">
                 <v-card
                   :class="`${
-                    i % 2 == 0
-                      ? 'bg-blue-grey-lighten-4'
-                      : 'bg-blue-grey-lighten-5'
-                  }`"
+                    i % 2 == 0 ? 'bg-white' : 'bg-blue-grey-lighten-5'
+                  }${' ma-n2'}`"
                 >
                   <v-row>
                     <v-col
@@ -139,34 +137,36 @@
         </v-response>
       </v-card>
 
-      <v-row class="ma-auto">
+      <v-row>
         <v-card
           class="ma-auto mt-1 text-green-darken-4 text-subtitle-1 font-weight-black pa-1 d-flex"
           width="95vw"
           :elevation="2"
           rounded="lg"
-          max-height="15vh"
+          height="7vh"
         >
           <v-col class="ma-auto text-start">
             <p>TOTAL: {{ allRegisters.totalCount }}</p>
           </v-col>
 
-          <v-col class="ma-auto">
+          <v-col class="mt-n3 d-flex justify-end">
+            <v-sheet width="6vw" class="text-center">
+              <v-select
+                v-model="pagination.perPage"
+                label="Linhas por página:"
+                dense
+                :items="[10, 20, 30]"
+              ></v-select>
+            </v-sheet>
             <v-pagination
               v-model="pagination.page"
-              :length="5"
-              :total-visible="1"
+              :length="
+                allRegisters.totalCount <= pagination.perPage
+                  ? 1
+                  : parseInt(allRegisters.totalCount / pagination.perPage) + 1
+              "
+              :total-visible="5"
             ></v-pagination>
-          </v-col>
-
-          <v-col>
-            <v-select
-              v-model="pagination.perPage"
-              label="Select"
-              :items="[10, 20, 30]"
-              variant="solo-filled"
-              width="10vw"
-            ></v-select>
           </v-col>
         </v-card>
       </v-row>
@@ -254,6 +254,7 @@
 <script>
 import axios from "axios";
 import Global from "../Global.js";
+import { mapState, mapMutations } from "vuex";
 
 export default {
   data() {
@@ -297,11 +298,23 @@ export default {
     };
   },
   methods: {
+    ...mapMutations([
+      "setSelected",
+      "clearSelected",
+      "setOptions",
+      "setPage",
+      "setItemsPerPage",
+    ]),
+
     async findAndCountAll() {
       try {
         this.allRegisters = await axios({
           ...this.configAxios,
-          url: `${Global.url}/client`,
+          url: `${Global.url}/client?page=${
+            this.allRegisters.totalCount <= this.pagination.perPage
+              ? 1
+              : this.pagination.page
+          }&perPage=${this.pagination.perPage}`,
           headers: {
             Authorization: localStorage.getItem("jwt"),
           },

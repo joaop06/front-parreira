@@ -9,13 +9,46 @@ import { createRouter, createWebHistory } from 'vue-router/auto'
 
 const routes = [
   {
-    path: '/clientes',
+    path: "/",
+    redirect: "/home",
+  },
+  {
     component: () => import('@/layouts/default/Default.vue'),
     children: [
       {
-        path: '',
-        name: 'Clients',
-        component: () => import('@/pages/Clients.vue'),
+        path: '/home',
+        name: 'Home',
+        component: () => import('@/pages/Home.vue'),
+      },
+    ],
+  },
+  {
+    component: () => import('@/layouts/default/Default.vue'),
+    children: [
+      {
+        path: '/client',
+        name: 'Clientes',
+        component: () => import('@/pages/Clientes.vue'),
+      },
+    ],
+  },
+  {
+    component: () => import('@/layouts/default/Default.vue'),
+    children: [
+      {
+        path: '/login',
+        name: 'Login',
+        component: () => import('@/pages/Login.vue'),
+      },
+    ],
+  },
+  {
+    component: () => import('@/layouts/default/Default.vue'),
+    children: [
+      {
+        path: '/usuarios',
+        name: 'Usuários',
+        component: () => import('@/pages/Usuarios.vue'),
       },
     ],
   },

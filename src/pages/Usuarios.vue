@@ -550,8 +550,11 @@ export default {
       if (!["", null, undefined].includes(this.filters.username)) {
         query += `&username=${this.filters.username}`;
       }
-      if (!["", null, undefined].includes(this.filters.group_id)) {
-        const group_id = (query += `&group_id=${this.filters.group}`);
+      if (!["", null, undefined].includes(this.filters.group)) {
+        const group_id = this.listGroups.groups.find(
+          (group) => group.name === this.filters.group
+        );
+        query += `&group_id=${group_id.id}`;
       }
       if (!["", null, undefined].includes(this.filters.active)) {
         query += `&active=${this.filters.active}`;

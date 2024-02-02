@@ -31,22 +31,21 @@
             ></v-text-field>
           </v-col>
           <v-col>
-            <v-text-field
+            <v-select
               clearable
               variant="outlined"
               color="green-darken-1"
               label="Grupo"
-              v-model="filters.group_id"
-            ></v-text-field>
+              :items="listGroups.names"
+              v-model="filters.group"
+            ></v-select>
           </v-col>
           <v-col>
-            <v-text-field
-              clearable
-              variant="outlined"
+            <v-switch
               color="green-darken-1"
               label="Ativo"
               v-model="filters.active"
-            ></v-text-field>
+            ></v-switch>
           </v-col>
         </v-row>
 
@@ -113,7 +112,7 @@
 
         <v-response>
           <v-row class="d-block justify-center">
-            <div v-if="[allRegisters.rows].length > 0">
+            <div v-if="allRegisters.rows.length > 0">
               <v-col v-for="(user, i) in allRegisters.rows" :key="user.id">
                 <v-card
                   :class="`${
@@ -135,14 +134,49 @@
                         size="small"
                         :elevation="0"
                         @click="
-                          boxDialog({ type: 'upload', status: true }, user)
+                          boxDialog(
+                            { type: 'upload/delete', status: true },
+                            user
+                          )
                         "
                       >
                         <v-icon color="pink">mdi-pencil</v-icon>
                       </v-btn>
 
+                      <v-icon
+                        v-if="
+                          nameAttr.field == 'active' &&
+                          nameAttr.type == 'boolean'
+                        "
+                        :color="
+                          formatDataRegister(
+                            user,
+                            user[nameAttr.field],
+                            nameAttr
+                          )
+                            ? 'green'
+                            : 'red'
+                        "
+                      >
+                        {{
+                          formatDataRegister(
+                            user,
+                            user[nameAttr.field],
+                            nameAttr
+                          )
+                            ? "mdi-check-bold"
+                            : "mdi-close-thick"
+                        }}
+                      </v-icon>
+
                       <p v-else>
-                        {{ formatDataRegister(user[nameAttr.field], nameAttr) }}
+                        {{
+                          formatDataRegister(
+                            user,
+                            user[nameAttr.field],
+                            nameAttr
+                          )
+                        }}
                       </p>
                     </v-col>
                   </v-row>
@@ -150,7 +184,7 @@
               </v-col>
             </div>
 
-            <v-row v-if="[allRegisters.rows].length === 0">
+            <v-row v-else>
               <v-col>
                 <v-card
                   class="ma-auto mt-8"
@@ -219,14 +253,14 @@
           </v-card-text>
 
           <v-card-text
-            v-if="showDialog.type == 'upload'"
+            v-if="showDialog.type == 'upload/delete'"
             class="text-center text-h6 text-green-darken-4 font-weight-bold"
           >
             ATUALIZAÇÃO DE USUÁRIOS
           </v-card-text>
 
           <v-row class="ma-2">
-            <v-col>
+            <v-col cols="4">
               <v-text-field
                 clearable
                 variant="outlined"
@@ -235,13 +269,49 @@
                 v-model="objectUsers.data.name"
               ></v-text-field>
             </v-col>
-            <v-col>
+            <v-col cols="4">
               <v-text-field
                 clearable
                 variant="outlined"
                 color="green-darken-1"
-                label="Documento"
-                v-model="objectUsers.data.document"
+                label="Usuário"
+                v-model="objectUsers.data.username"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="4">
+              <v-select
+                clearable
+                variant="outlined"
+                color="green-darken-1"
+                label="Grupo"
+                :items="listGroups.names"
+                v-model="objectUsers.data.group_id"
+              ></v-select>
+            </v-col>
+            <v-col cols="12">
+              <v-text-field
+                clearable
+                variant="outlined"
+                color="green-darken-1"
+                label="E-mail"
+                v-model="objectUsers.data.email"
+              ></v-text-field>
+            </v-col>
+            <v-col v-if="showDialog.type == 'upload/delete'">
+              <v-switch
+                color="green-darken-1"
+                label="Ativo"
+                v-model="objectUsers.data.active"
+              ></v-switch>
+            </v-col>
+
+            <v-col v-if="showDialog.type == 'create'">
+              <v-text-field
+                clearable
+                variant="outlined"
+                color="green-darken-1"
+                label="Senha"
+                v-model="objectUsers.data.password"
               ></v-text-field>
             </v-col>
           </v-row>
@@ -266,7 +336,7 @@
               >CADASTRAR</v-btn
             >
 
-            <v-col v-if="showDialog.type == 'upload'">
+            <v-col v-if="showDialog.type == 'upload/delete'">
               <v-btn
                 class="ma-1 bg-green-darken-1"
                 :elevation="0"
@@ -300,14 +370,14 @@ export default {
     return {
       configAxios: Global.configAxios,
 
-      allRegisters: {},
+      allRegisters: { rows: [] },
       allAttrs: [{ field: "action", label: "ação" }],
 
       filters: {
         name: "",
         email: "",
         username: "",
-        group_id: "",
+        group: "",
         active: "",
       },
 
@@ -316,12 +386,20 @@ export default {
         type: "",
       },
 
+      listGroups: {
+        names: [],
+        groups: [],
+      },
+
       objectUsers: {
         error: false,
         message: "",
         data: {
           name: "",
-          document: "",
+          email: "",
+          username: "",
+          group_id: "",
+          active: "",
         },
       },
 
@@ -350,7 +428,6 @@ export default {
           },
         }).then((res) => res.data);
       } catch (e) {
-        console.log(e);
         if (e?.response?.status == 401) {
           // Mensagem: e.response.data.error
           this.$router.push(`${e.response.data.redirect}`);
@@ -359,6 +436,11 @@ export default {
     },
 
     async create() {
+      const group_id = this.listGroups.groups.find(
+        (group) => group.name === this.objectUsers.data.group_id
+      );
+      console.log(group_id);
+      this.objectUsers.data.group_id = group_id.id;
       await axios({
         ...this.configAxios,
         url: `${Global.url}/users`,
@@ -366,31 +448,73 @@ export default {
         headers: {
           Authorization: localStorage.getItem("jwt"),
         },
-        data: this.objectUsers.data,
+        data: { ...this.objectUsers.data, active: true },
       })
         .then(async (res) => {
           this.objectUsers.message = "Usuário cadastrado com sucesso!";
 
           setTimeout(async () => {
             this.showDialog.status = false;
-            this.objectClient.error = false;
-            this.objectClient.message = "";
+            this.objectUsers.error = false;
+            this.objectUsers.message = "";
             await this.findAndCountAll();
           }, 1000);
         })
         .catch((err) => {
+          if (err?.response?.status == 401) {
+            // Mensagem: e.response.data.error
+            this.$router.push(`${err.response.data.redirect}`);
+          }
+          console.log(err);
           this.objectUsers.error = true;
-          this.objectUsers.message = err.message || err.data.message;
+          this.objectUsers.message = err.response.data.error || err.message;
         });
     },
 
     async destroy() {
-      return;
+      try {
+        await axios({
+          ...this.configAxios,
+          url: `${Global.url}/users?id=${this.objectUsers.data.id}`,
+          method: "DELETE",
+          headers: {
+            Authorization: localStorage.getItem("jwt"),
+          },
+        }).then(async (res) => {
+          this.objectUsers.message = "Usuário deletado com sucesso!";
+
+          setTimeout(async () => {
+            this.showDialog.status = false;
+            this.objectUsers.error = false;
+            this.objectUsers.message = "";
+            await this.findAndCountAll();
+          }, 1000);
+        });
+      } catch (e) {
+        if (e?.response?.status == 401) {
+          // Mensagem: e.response.data.error
+          this.$router.push(`${e.response.data.redirect}`);
+        }
+
+        this.objectUsers.error = true;
+        this.objectUsers.message = err.message || err.data.message;
+      }
     },
 
     async update() {
-      await axios
-        .put(`${Global.api_back}/users`, this.objectUsers.data)
+      const group_id = this.listGroups.groups.find(
+        (group) => group.name === this.objectUsers.data.group_id
+      );
+      this.objectUsers.data.group_id = group_id.id;
+      await axios({
+        ...this.configAxios,
+        url: `${Global.url}/users`,
+        method: "PUT",
+        headers: {
+          Authorization: localStorage.getItem("jwt"),
+        },
+        data: this.objectUsers.data,
+      })
         .then((res) => {
           if (res.status == 201) {
             this.objectUsers.message = "Usuário atualizado com sucesso!";
@@ -398,12 +522,17 @@ export default {
 
           setTimeout(async () => {
             this.showDialog.status = false;
-            this.objectClient.error = false;
-            this.objectClient.message = "";
+            this.objectUsers.error = false;
+            this.objectUsers.message = "";
             await this.findAndCountAll();
           }, 1000);
         })
         .catch((err) => {
+          if (e?.response?.status == 401) {
+            // Mensagem: e.response.data.error
+            this.$router.push(`${e.response.data.redirect}`);
+          }
+
           this.objectUsers.error = true;
           this.objectUsers.message = err.message || err.data.message;
         });
@@ -422,7 +551,7 @@ export default {
         query += `&username=${this.filters.username}`;
       }
       if (!["", null, undefined].includes(this.filters.group_id)) {
-        query += `&group_id=${this.filters.group_id}`;
+        const group_id = (query += `&group_id=${this.filters.group}`);
       }
       if (!["", null, undefined].includes(this.filters.active)) {
         query += `&active=${this.filters.active}`;
@@ -442,8 +571,6 @@ export default {
         res.data.forEach((attr) => {
           this.allAttrs.push(attr);
         });
-
-        console.log(this.allAttrs);
       });
     },
 
@@ -456,7 +583,8 @@ export default {
       this.pagination.page = 1;
       await this.findAndCountAll();
     },
-    boxDialog(mode, user) {
+
+    async boxDialog(mode, user) {
       this.showDialog = {
         status: mode.status,
         type: mode.type,
@@ -467,16 +595,51 @@ export default {
       if (mode.type == "create") {
         this.objectUsers.data = {
           name: "",
-          document: "",
+          email: "",
+          username: "",
         };
-      } else if (mode.type == "upload") {
+      } else if (mode.type == "upload/delete") {
         this.objectUsers.data = {
+          id: user.id,
           name: user.name,
-          document: user.document,
+          email: user.email,
+          username: user.username,
+          group_id: this.listGroups.groups.find(
+            (group) => group.id === user.group_id
+          ).name,
+          active: user.active,
         };
       }
     },
-    formatDataRegister(data, attr) {
+
+    async getGroups() {
+      await axios({
+        ...this.configAxios,
+        url: `${Global.url}/group`,
+        method: "GET",
+        headers: {
+          Authorization: localStorage.getItem("jwt"),
+        },
+      }).then(async (res) => {
+        res.data.rows.forEach((group) => {
+          this.listGroups.names.push(group.name);
+          this.listGroups.groups.push(group);
+        });
+
+        console.log(this.listGroups);
+      });
+    },
+
+    formatDataRegister(user, data, attr) {
+      if (attr.field.includes("_id")) {
+        let nameRelation = attr.field
+          .split("_")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+
+        data = user[nameRelation[0]].name;
+        attr.type = typeof data;
+      }
+
       if (attr.type === "datatime") {
         return moment(data).format("DD/MM/YYYY");
       } else if (attr.type === "string") {
@@ -492,8 +655,9 @@ export default {
   },
 
   async mounted() {
-    await this.findAndCountAll();
     await this.getAttrsModel();
+    await this.getGroups();
+    await this.findAndCountAll();
   },
 };
 </script>

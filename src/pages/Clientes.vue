@@ -86,7 +86,7 @@
 
         <v-response>
           <v-row class="d-block justify-center">
-            <div v-if="[allRegisters.rows].length > 0">
+            <div v-if="allRegisters.rows.length > 0">
               <v-col v-for="(client, i) in allRegisters.rows" :key="client.id">
                 <v-card
                   :class="`${
@@ -108,7 +108,10 @@
                         size="small"
                         :elevation="0"
                         @click="
-                          boxDialog({ type: 'upload', status: true }, client)
+                          boxDialog(
+                            { type: 'upload/delete', status: true },
+                            client
+                          )
                         "
                       >
                         <v-icon color="pink">mdi-pencil</v-icon>
@@ -125,7 +128,7 @@
               </v-col>
             </div>
 
-            <v-row v-if="[allRegisters.rows].length === 0">
+            <v-row v-else>
               <v-col>
                 <v-card
                   class="ma-auto mt-8"
@@ -241,7 +244,7 @@
               >CADASTRAR</v-btn
             >
 
-            <v-col v-if="showDialog.type == 'upload'">
+            <v-col v-if="showDialog.type == 'upload/delete'">
               <v-btn
                 class="ma-1 bg-green-darken-1"
                 :elevation="0"
@@ -275,7 +278,7 @@ export default {
     return {
       configAxios: Global.configAxios,
 
-      allRegisters: {},
+      allRegisters: { rows: [] },
       allAttrs: [{ field: "action", label: "ação" }],
 
       filters: {
@@ -322,7 +325,6 @@ export default {
           },
         }).then((res) => res.data);
       } catch (e) {
-        console.log(e);
         if (e?.response?.status == 401) {
           // Mensagem: e.response.data.error
           this.$router.push(`${e.response.data.redirect}`);
@@ -351,13 +353,44 @@ export default {
           }, 1000);
         })
         .catch((err) => {
+          if (e?.response?.status == 401) {
+            // Mensagem: e.response.data.error
+            this.$router.push(`${e.response.data.redirect}`);
+          }
+
           this.objectClient.error = true;
           this.objectClient.message = err.message || err.data.message;
         });
     },
 
     async destroy() {
-      return;
+      try {
+        await axios({
+          ...this.configAxios,
+          url: `${Global.url}/client?id=${this.objectClient.data.id}`,
+          method: "DELETE",
+          headers: {
+            Authorization: localStorage.getItem("jwt"),
+          },
+        }).then(async (res) => {
+          this.objectClient.message = "Cliente deletado com sucesso!";
+
+          setTimeout(async () => {
+            this.showDialog.status = false;
+            this.objectClient.error = false;
+            this.objectClient.message = "";
+            await this.findAndCountAll();
+          }, 1000);
+        });
+      } catch (e) {
+        if (e?.response?.status == 401) {
+          // Mensagem: e.response.data.error
+          this.$router.push(`${e.response.data.redirect}`);
+        }
+
+        this.objectClient.error = true;
+        this.objectClient.message = err.message || err.data.message;
+      }
     },
 
     async update() {
@@ -383,6 +416,11 @@ export default {
           }, 1000);
         })
         .catch((err) => {
+          if (e?.response?.status == 401) {
+            // Mensagem: e.response.data.error
+            this.$router.push(`${e.response.data.redirect}`);
+          }
+
           this.objectClient.error = true;
           this.objectClient.message = err.response.data.error || err.message;
         });
@@ -427,8 +465,6 @@ export default {
           this.allAttrs.push(attr);
         });
       });
-
-      console.log(this.allAttrs);
     },
 
     async clearFilters() {
@@ -450,7 +486,7 @@ export default {
           name: "",
           document: "",
         };
-      } else if (mode.type == "upload") {
+      } else if (mode.type == "upload/delete") {
         this.objectClient.data = {
           id: client.id,
           name: client.name,
